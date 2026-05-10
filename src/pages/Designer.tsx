@@ -8,11 +8,14 @@ import { ToolButton } from '../components/ToolButton'
 import { PropertiesPanel } from '../components/PropertiesPanel'
 import type { DesignElement as IDesignElement } from '../types/designer'
 
+import type { KonvaEventObject } from 'konva/lib/Node'
+import Konva from 'konva'
+
 const TSHIRT_IMAGE = 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?auto=format&fit=crop&q=80&w=800'
 
 interface URLImageProps {
   url: string
-  [key: string]: any
+  [key: string]: unknown
 }
 
 const URLImage = ({ url, ...props }: URLImageProps) => {
@@ -28,19 +31,22 @@ interface DesignElementProps {
 }
 
 const DesignElement = ({ shapeProps, isSelected, onSelect, onChange }: DesignElementProps) => {
-  const shapeRef = useRef<any>(null)
-  const trRef = useRef<any>(null)
+  const textRef = useRef<Konva.Text>(null)
+  const imageRef = useRef<Konva.Image>(null)
+  const trRef = useRef<Konva.Transformer>(null)
 
   useEffect(() => {
-    if (isSelected && trRef.current && shapeRef.current) {
-      // we need to attach transformer manually
-      trRef.current.nodes([shapeRef.current])
-      trRef.current.getLayer()?.batchDraw()
+    if (isSelected && trRef.current) {
+      const node = shapeProps.type === 'text' ? textRef.current : imageRef.current
+      if (node) {
+        trRef.current.nodes([node])
+        trRef.current.getLayer()?.batchDraw()
+      }
     }
-  }, [isSelected])
+  }, [isSelected, shapeProps.type])
 
   const handleTransformEnd = () => {
-    const node = shapeRef.current
+    const node = shapeProps.type === 'text' ? textRef.current : imageRef.current
     if (!node) return
 
     const scaleX = node.scaleX()
@@ -54,7 +60,7 @@ const DesignElement = ({ shapeProps, isSelected, onSelect, onChange }: DesignEle
       x: node.x(),
       y: node.y(),
       width: Math.max(5, node.width() * scaleX),
-      height: Math.max(node.height() * scaleY),
+      height: Math.max(5, node.height() * scaleY),
       rotation: node.rotation(),
     })
   }
@@ -65,7 +71,7 @@ const DesignElement = ({ shapeProps, isSelected, onSelect, onChange }: DesignEle
         <Text
           onClick={onSelect}
           onTap={onSelect}
-          ref={shapeRef}
+          ref={textRef}
           {...shapeProps}
           draggable
           onDragEnd={(e) => {
@@ -80,11 +86,11 @@ const DesignElement = ({ shapeProps, isSelected, onSelect, onChange }: DesignEle
         <URLImage
           onClick={onSelect}
           onTap={onSelect}
-          ref={shapeRef}
+          ref={imageRef}
           {...shapeProps}
           url={shapeProps.url || ''}
           draggable
-          onDragEnd={(e: any) => {
+          onDragEnd={(e: KonvaEventObject<DragEvent>) => {
             onChange({
               x: e.target.x(),
               y: e.target.y(),
@@ -114,7 +120,7 @@ export const Designer = () => {
   const [toast, setToast] = useState({ show: false, message: '' })
   const [shirtImage] = useImage(TSHIRT_IMAGE)
   
-  const stageRef = useRef<any>(null)
+  const stageRef = useRef<Konva.Stage>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const selectedElement = elements.find(el => el.id === selectedId)
@@ -177,7 +183,10 @@ export const Designer = () => {
     
     // Small timeout to allow transformer to disappear
     setTimeout(() => {
-      const uri = stageRef.current.toDataURL({ pixelRatio: 2 })
+      const stage = stageRef.current
+      if (!stage) return
+      
+      const uri = stage.toDataURL({ pixelRatio: 2 })
       const link = document.createElement('a')
       link.download = 'nameless-design.png'
       link.href = uri
