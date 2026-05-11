@@ -8,6 +8,7 @@ export interface DesignElement {
   width: number
   height: number
   rotation: number
+  name?: string
   
   // Text specific
   text?: string

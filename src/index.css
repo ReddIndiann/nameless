@@ -1,5 +1,5 @@
-@import "tailwindcss";
 @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;900&display=swap');
+@import "tailwindcss";
 
 @theme {
   --color-primary: #ff4d4d;
@@ -40,6 +40,31 @@ body {
     @apply border-slate-800;
   }
   body {
-    @apply bg-slate-950 text-slate-200;
+    @apply bg-slate-950 text-slate-200 selection:bg-red-500/30;
   }
+}
+
+@layer utilities {
+  .glass {
+    @apply bg-slate-900/50 backdrop-blur-2xl border border-slate-800/50 shadow-2xl;
+  }
+  
+  .glass-card {
+    @apply bg-slate-900/40 backdrop-blur-xl border border-white/5 shadow-2xl;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 4px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    @apply bg-slate-800 rounded-full hover:bg-slate-700 transition-colors;
+  }
+}
+
+/* For Three.js Canvas to be transparent if needed */
+canvas {
+  outline: none;
 }

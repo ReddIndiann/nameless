@@ -35,6 +35,19 @@ export const PropertiesPanel = ({ element, onChange, onDelete }: PropertiesPanel
         </button>
       </div>
 
+      <div className="space-y-4">
+        <div className="space-y-2">
+          <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">Layer Name</label>
+          <input
+            type="text"
+            placeholder={element.type === 'text' ? 'Text Layer' : 'Image Layer'}
+            value={element.name || ''}
+            onChange={(e) => onChange({ name: e.target.value })}
+            className="w-full bg-slate-950/50 border border-slate-800 rounded-xl px-4 py-3 text-white focus:border-red-500 outline-none transition-colors text-sm"
+          />
+        </div>
+      </div>
+
       {element.type === 'text' && (
         <div className="space-y-4">
           <div className="space-y-2">
