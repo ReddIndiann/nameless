@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { Stage, Layer, Text, Image as KonvaImage, Transformer } from 'react-konva'
 import useImage from 'use-image'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -118,9 +118,18 @@ const DesignElement = ({ shapeProps, isSelected, onSelect, onChange }: DesignEle
 }
 
 export const Designer = () => {
-  const [elements, setElementsState] = useState<IDesignElement[]>([])
-  const [history, setHistory] = useState<IDesignElement[][]>([])
-  const [historyIndex, setHistoryIndex] = useState(-1)
+  const [elements, setElementsState] = useState<IDesignElement[]>(() => {
+    const saved = localStorage.getItem('nameless-design')
+    return saved ? JSON.parse(saved) : []
+  })
+  const [history, setHistory] = useState<IDesignElement[][]>(() => {
+    const saved = localStorage.getItem('nameless-design')
+    return saved ? [JSON.parse(saved)] : []
+  })
+  const [historyIndex, setHistoryIndex] = useState(() => {
+    const saved = localStorage.getItem('nameless-design')
+    return saved ? 0 : -1
+  })
   
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [view, setView] = useState<'2d' | '3d'>('2d')
@@ -133,18 +142,10 @@ export const Designer = () => {
   const stageRef = useRef<Konva.Stage>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  // Sync texture for 3D view
-  useEffect(() => {
-    if (view === '3d') {
-      updateTexture()
-    }
-  }, [view, elements])
-
-  const updateTexture = () => {
+  const updateTexture = useCallback(() => {
     if (!stageRef.current) return
     
     // Temporarily hide mockup and selection for clean texture
-    const prevSelectedId = selectedId
     setSelectedId(null)
     setShowMockup(false)
 
@@ -159,20 +160,15 @@ export const Designer = () => {
         console.warn('Could not capture canvas texture:', err)
       }
       setShowMockup(true)
-      setSelectedId(prevSelectedId)
     }, 50)
-  }
-
-  // Load from localStorage on mount
-  useEffect(() => {
-    const saved = localStorage.getItem('nameless-design')
-    if (saved) {
-      const parsed = JSON.parse(saved)
-      setElementsState(parsed)
-      setHistory([parsed])
-      setHistoryIndex(0)
-    }
   }, [])
+
+  // Sync texture for 3D view
+  useEffect(() => {
+    if (view === '3d') {
+      updateTexture()
+    }
+  }, [view, elements, updateTexture])
 
   // Save to localStorage when elements change
   useEffect(() => {
@@ -194,21 +190,32 @@ export const Designer = () => {
     }
   }
 
-  const undo = () => {
-    if (historyIndex > 0) {
-      const nextIndex = historyIndex - 1
-      setElementsState(history[nextIndex])
-      setHistoryIndex(nextIndex)
-    }
-  }
+  const undo = useCallback(() => {
+    setHistoryIndex(prev => {
+      if (prev > 0) {
+        const nextIndex = prev - 1
+        setElementsState(history[nextIndex])
+        return nextIndex
+      }
+      return prev
+    })
+  }, [history])
 
-  const redo = () => {
-    if (historyIndex < history.length - 1) {
-      const nextIndex = historyIndex + 1
-      setElementsState(history[nextIndex])
-      setHistoryIndex(nextIndex)
-    }
-  }
+  const redo = useCallback(() => {
+    setHistoryIndex(prev => {
+      if (prev < history.length - 1) {
+        const nextIndex = prev + 1
+        setElementsState(history[nextIndex])
+        return nextIndex
+      }
+      return prev
+    })
+  }, [history])
+
+  const deleteElement = useCallback((id: string) => {
+    setElementsState(prev => prev.filter(el => el.id !== id))
+    setSelectedId(null)
+  }, [])
 
   // Keyboard Shortcuts
   useEffect(() => {
@@ -226,7 +233,7 @@ export const Designer = () => {
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [historyIndex, history, selectedId])
+  }, [undo, redo, deleteElement, selectedId])
 
   const selectedElement = elements.find(el => el.id === selectedId)
 
@@ -275,10 +282,7 @@ export const Designer = () => {
     setElements(elements.map(el => el.id === id ? { ...el, ...newAttrs } : el))
   }
 
-  const deleteElement = (id: string) => {
-    setElements(elements.filter(el => el.id !== id))
-    setSelectedId(null)
-  }
+  // deleteElement is defined above with useCallback for keyboard shortcut access
 
   const handleExport = () => {
     if (!stageRef.current) return
